@@ -9,7 +9,10 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     if (user) {
-      connectSocket(user.id);
+      connectSocket(user.id, {
+        name: user.fullName || "Unknown User",
+        imageUrl: user.imageUrl
+      });
     }
   }, [user, connectSocket]);
 

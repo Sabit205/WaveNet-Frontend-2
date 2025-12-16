@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { io, Socket } from 'socket.io-client';
 
-interface User {
+export interface UserInfo {
   id: string;
   name: string;
   imageUrl: string;
@@ -9,18 +9,17 @@ interface User {
 
 interface CallState {
   socket: Socket | null;
-  onlineUsers: string[];
+  onlineUsers: { userId: string, userInfo: UserInfo }[]; // Updated type
   callStatus: 'idle' | 'calling' | 'incoming' | 'active';
   callType: 'audio' | 'video' | null;
-  caller: User | null; // The person calling US
-  remoteUser: User | null; // The person WE are in a call with
+  caller: UserInfo | null; 
+  remoteUser: UserInfo | null;
   callId: string | null;
   
   // Actions
-  connectSocket: (userId: string) => void;
-  setOnlineUsers: (users: string[]) => void;
-  setIncomingCall: (caller: User, type: 'audio'|'video', callId: string) => void;
-  startCalling: (target: User, type: 'audio'|'video') => void;
+  connectSocket: (userId: string, userInfo: { name: string, imageUrl: string }) => void;
+  setIncomingCall: (caller: UserInfo, type: 'audio'|'video', callId: string) => void;
+  startCalling: (target: UserInfo, type: 'audio'|'video') => void;
   acceptCall: () => void;
   rejectCall: () => void;
   resetCall: () => void;
@@ -35,13 +34,13 @@ export const useStore = create<CallState>((set, get) => ({
   remoteUser: null,
   callId: null,
 
-  connectSocket: (userId) => {
+  connectSocket: (userId, userInfo) => {
     if (get().socket) return;
     
     const newSocket = io(process.env.NEXT_PUBLIC_BACKEND_URL as string);
     newSocket.on('connect', () => {
-      console.log('Connected to socket');
-      newSocket.emit('user-online', userId);
+      // Send rich user info on connect
+      newSocket.emit('user-online', { userId, userInfo: { id: userId, ...userInfo } });
     });
 
     newSocket.on('online-users', (users) => {
@@ -51,13 +50,11 @@ export const useStore = create<CallState>((set, get) => ({
     set({ socket: newSocket });
   },
 
-  setOnlineUsers: (users) => set({ onlineUsers: users }),
-
   setIncomingCall: (caller, type, callId) => {
     set({ 
       callStatus: 'incoming', 
       caller: caller, 
-      remoteUser: caller, // For incoming, remote is the caller
+      remoteUser: caller, 
       callType: type,
       callId
     });

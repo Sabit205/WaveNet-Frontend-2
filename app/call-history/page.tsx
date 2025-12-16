@@ -5,7 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import axios from 'axios';
-import { format } from 'date-fns';
+import { format, differenceInSeconds } from 'date-fns';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
@@ -16,6 +16,7 @@ interface Log {
   receiverName: string;
   callType: string;
   startTime: string;
+  endTime?: string;
   status: string;
 }
 
@@ -39,9 +40,17 @@ export default function CallHistory() {
     fetchHistory();
   }, [userId, getToken]);
 
+  const getDuration = (start: string, end?: string) => {
+    if (!end) return '-';
+    const durationSec = differenceInSeconds(new Date(end), new Date(start));
+    const mins = Math.floor(durationSec / 60);
+    const secs = durationSec % 60;
+    return `${mins}m ${secs}s`;
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         <Link href="/">
           <Button variant="ghost" className="mb-4 gap-2">
             <ArrowLeft className="h-4 w-4" /> Back to Dashboard
@@ -59,13 +68,14 @@ export default function CallHistory() {
                   <TableHead>Receiver</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Duration</TableHead>
                   <TableHead>Date</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {logs.map((log) => (
                   <TableRow key={log._id}>
-                    <TableCell>{log.callerName}</TableCell>
+                    <TableCell className="font-medium">{log.callerName}</TableCell>
                     <TableCell>{log.receiverName}</TableCell>
                     <TableCell className="capitalize">{log.callType}</TableCell>
                     <TableCell>
@@ -76,7 +86,8 @@ export default function CallHistory() {
                         {log.status}
                       </Badge>
                     </TableCell>
-                    <TableCell>{format(new Date(log.startTime), 'MMM d, yyyy HH:mm')}</TableCell>
+                    <TableCell>{getDuration(log.startTime, log.endTime)}</TableCell>
+                    <TableCell>{format(new Date(log.startTime), 'MMM d, HH:mm')}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
