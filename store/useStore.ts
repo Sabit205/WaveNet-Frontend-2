@@ -9,20 +9,22 @@ export interface UserInfo {
 
 interface CallState {
   socket: Socket | null;
-  onlineUsers: { userId: string, userInfo: UserInfo }[]; // Updated type
+  onlineUsers: string[]; // List of IDs
   callStatus: 'idle' | 'calling' | 'incoming' | 'active';
   callType: 'audio' | 'video' | null;
   caller: UserInfo | null; 
   remoteUser: UserInfo | null;
   callId: string | null;
-  
+  remoteVideoEnabled: boolean;
+
   // Actions
-  connectSocket: (userId: string, userInfo: { name: string, imageUrl: string }) => void;
+  connectSocket: (userId: string, userInfo: any) => void;
   setIncomingCall: (caller: UserInfo, type: 'audio'|'video', callId: string) => void;
   startCalling: (target: UserInfo, type: 'audio'|'video') => void;
   acceptCall: () => void;
   rejectCall: () => void;
   resetCall: () => void;
+  setRemoteVideoEnabled: (enabled: boolean) => void;
 }
 
 export const useStore = create<CallState>((set, get) => ({
@@ -33,30 +35,26 @@ export const useStore = create<CallState>((set, get) => ({
   caller: null,
   remoteUser: null,
   callId: null,
+  remoteVideoEnabled: true,
 
   connectSocket: (userId, userInfo) => {
     if (get().socket) return;
-    
     const newSocket = io(process.env.NEXT_PUBLIC_BACKEND_URL as string);
     newSocket.on('connect', () => {
-      // Send rich user info on connect
-      newSocket.emit('user-online', { userId, userInfo: { id: userId, ...userInfo } });
+      newSocket.emit('user-online', { userId, userInfo });
     });
-
-    newSocket.on('online-users', (users) => {
-      set({ onlineUsers: users });
-    });
-
+    newSocket.on('online-users', (users) => set({ onlineUsers: users }));
     set({ socket: newSocket });
   },
 
   setIncomingCall: (caller, type, callId) => {
     set({ 
       callStatus: 'incoming', 
-      caller: caller, 
-      remoteUser: caller, 
+      caller, 
+      remoteUser: caller, // The caller is the remote user for us
       callType: type,
-      callId
+      callId,
+      remoteVideoEnabled: true
     });
   },
 
@@ -64,25 +62,16 @@ export const useStore = create<CallState>((set, get) => ({
     set({
       callStatus: 'calling',
       remoteUser: target,
-      callType: type
+      callType: type,
+      remoteVideoEnabled: true
     });
   },
 
   acceptCall: () => set({ callStatus: 'active' }),
   
-  rejectCall: () => set({ 
-    callStatus: 'idle', 
-    caller: null, 
-    remoteUser: null, 
-    callType: null,
-    callId: null
-  }),
+  rejectCall: () => set({ callStatus: 'idle', caller: null, remoteUser: null, callId: null }),
+  
+  resetCall: () => set({ callStatus: 'idle', caller: null, remoteUser: null, callId: null }),
 
-  resetCall: () => set({ 
-    callStatus: 'idle', 
-    caller: null, 
-    remoteUser: null, 
-    callType: null, 
-    callId: null
-  }),
+  setRemoteVideoEnabled: (enabled) => set({ remoteVideoEnabled: enabled }),
 }));
